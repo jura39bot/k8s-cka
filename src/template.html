@@ -183,6 +183,8 @@ function render(){
   case "lesson":return lessonScreen(a);
   case "cours":return coursScreen(a);
   case "quiz":return quizScreen(a);
+  case "mock":return mockScreen(a);
+  case "mockresult":return mockResult(a);
   case "cheat":return cheatScreen(a);
   case "tips":return tipsScreen(a);
   case "docs":return docsScreen(a);
@@ -236,6 +238,8 @@ function home(a){
  <div class="spacer"></div>
  <button class="btn" id="qcm">❓ QCM — 12 questions</button>
  <div style="height:10px"></div>
+ <button class="btn blue" id="mock">⏱ Mock exam — 20 questions · 2 h</button>
+ <div style="height:10px"></div>
  <div class="grid2">
    <button class="btn alt" id="dom">📚 Lessons</button>
    <button class="btn alt" id="cheat">📄 Cheat sheets</button>
@@ -250,6 +254,7 @@ function home(a){
  <div class="spacer"></div>
  <div class="stack" id="dl"></div>`;
  $("#qcm").onclick=()=>startQuiz(null);
+ $("#mock").onclick=()=>startMock();
  $("#dom").onclick=()=>go("domains");
  $("#cheat").onclick=()=>{S._dom=DATA.cheatsheets[0].id;go("cheat")};
  $("#tips").onclick=()=>go("tips");
@@ -403,6 +408,90 @@ function endQuiz(ok,n){
  <div class="stat"><b>${n-ok}</b><i>errors</i></div><div class="stat"><b>${acc}%</b><i>score</i></div></div>
  <div class="spacer"></div><button class="btn" onclick="go('home')">Done</button>
  <div style="height:10px"></div><button class="btn alt" onclick="startQuiz(null)">Another series</button>`;
+}
+
+/* ---------- timed mock exam ---------- */
+let EX=null, EXT=null;
+function startMock(){
+  const plan=[["arch",5],["work",3],["net",4],["stor",2],["trbl",6]];
+  let list=[];
+  plan.forEach(([dom,n])=>{
+    const pool=(DATA.questions[dom]||[]).slice();
+    for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}
+    pool.slice(0,n).forEach(q=>list.push({...q,dom}));
+  });
+  for(let i=list.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[list[i],list[j]]=[list[j],list[i]]}
+  EX={list,i:0,ans:new Array(list.length).fill(-1),left:7200,start:Date.now(),done:false};
+  if(EXT)clearInterval(EXT);
+  EXT=setInterval(()=>{
+    if(!EX)return;
+    EX.left--;
+    const el=document.getElementById("clock");
+    if(el)el.textContent=fmtTime(EX.left);
+    if(EX.left<=0){clearInterval(EXT);submitMock()}
+  },1000);
+  go("mock");
+}
+function fmtTime(s){const m=Math.floor(s/60),ss=s%60;return `${String(m).padStart(2,"0")}:${String(ss).padStart(2,"0")}`}
+function mockScreen(a){
+  if(!EX)return go("home");
+  const q=EX.list[EX.i];
+  const answered=EX.ans.filter(x=>x>=0).length;
+  a.innerHTML=`<div class="top"><button class="back" onclick="if(confirm('Abandon the mock exam?')){clearInterval(EXT);EX=null;go('home')}">‹</button>
+   <h2>Mock exam</h2><span class="pill" id="clock">${fmtTime(EX.left)}</span></div>
+  <div class="between" style="margin-bottom:8px"><span class="pill">Question ${EX.i+1} / ${EX.list.length}</span>
+  <span class="tiny muted">${answered} answered</span></div>
+  <div class="bar" style="margin-bottom:14px"><i style="width:${Math.round(100*answered/EX.list.length)}%"></i></div>
+  <div class="cardq"><div class="tiny muted">${esc(domainById(q.dom).n)}</div>
+  <div style="font-size:18px;font-weight:750;margin-top:8px;line-height:1.4">${esc(q.q)}</div></div>
+  <div id="o">${q.o.map((x,i)=>`<button class="choice ${EX.ans[EX.i]===i?"ok":""}" data-i="${i}"><span class="k">${"ABCD"[i]}</span>${esc(x)}</button>`).join("")}</div>
+  <div class="spacer"></div>
+  <div class="grid2"><button class="btn alt" id="prev" ${EX.i===0?"disabled":""}>◀︎ Previous</button>
+  <button class="btn alt" id="next" ${EX.i===EX.list.length-1?"disabled":""}>Next ▶︎</button></div>
+  <div style="height:10px"></div>
+  <button class="btn" id="sub">Submit — ${answered}/${EX.list.length} answered</button>`;
+  a.querySelectorAll("#o .choice").forEach(b=>b.onclick=()=>{EX.ans[EX.i]=+b.dataset.i;render()});
+  $("#prev").onclick=()=>{if(EX.i>0){EX.i--;render()}};
+  $("#next").onclick=()=>{if(EX.i<EX.list.length-1){EX.i++;render()}};
+  $("#sub").onclick=()=>{if(confirm("Submit the exam? You cannot change answers after."))submitMock()};
+}
+function submitMock(){
+  if(!EX||EX.done)return;
+  EX.done=true;clearInterval(EXT);
+  const ok=EX.list.filter((q,i)=>EX.ans[i]===q.a).length;
+  const n=EX.list.length, score=Math.round(100*ok/n);
+  const per={};
+  EX.list.forEach((q,i)=>{per[q.dom]=per[q.dom]||{ok:0,n:0};per[q.dom].n++;if(EX.ans[i]===q.a)per[q.dom].ok++});
+  EX.result={ok,n,score,per,used:7200-EX.left};
+  S.history[today()]=S.history[today()]||{xp:0,m:0};
+  S.history[today()].m=(S.history[today()].m||0)+Math.round((7200-EX.left)/60);
+  S.minutes+=Math.round((7200-EX.left)/60);save();
+  go("mockresult");
+}
+function mockResult(a){
+  if(!EX||!EX.result)return go("home");
+  const r=EX.result, pass=r.score>=66;
+  a.innerHTML=`<div style="text-align:center;margin-top:4vh"><div style="font-size:60px">${pass?"🏅":"📉"}</div>
+  <h1 style="margin-top:8px">${r.score}%</h1>
+  <p class="muted" style="margin-top:4px">${r.ok} / ${r.n} · threshold 66% · ${pass?"PASS":"FAIL"}</p>
+  <p class="tiny muted">time used ${fmtTime(r.used)} of 2:00:00</p></div>
+  <div class="spacer"></div>
+  <div class="stack">${Object.entries(r.per).map(([d,v])=>{const p=Math.round(100*v.ok/v.n);
+    return `<div class="card"><div class="between"><b>${esc(domainById(d).n)}</b><span class="tiny muted">${v.ok}/${v.n} · ${p}%</span></div>
+    <div class="bar" style="margin-top:8px"><i style="width:${p}%"></i></div></div>`}).join("")}</div>
+  <div class="spacer"></div>
+  <button class="btn alt" id="rev">🔍 Review the ${r.n-r.ok} mistakes</button>
+  <div style="height:10px"></div>
+  <button class="btn" onclick="clearInterval(EXT);EX=null;go('home')">Done</button>`;
+  $("#rev").onclick=()=>{
+    const wrong=EX.list.map((q,i)=>({q,i})).filter(({q,i})=>EX.ans[i]!==q.a);
+    a.innerHTML=`<div class="top"><button class="back" onclick="go('mockresult')">‹</button><h2>Mistakes</h2><span style="width:40px"></span></div>
+    <div class="stack">${wrong.map(({q,i})=>`<div class="card"><div class="tiny muted">${esc(domainById(q.dom).n)}</div>
+      <p style="margin-top:6px;font-weight:700">${esc(q.q)}</p>
+      <p class="small" style="margin-top:8px;color:#ff9a9a">Your answer: ${EX.ans[i]>=0?esc(q.o[EX.ans[i]]):"—"}</p>
+      <p class="small" style="margin-top:4px;color:#b6ff87">Correct: ${esc(q.o[q.a])}</p>
+      <p class="tiny muted" style="margin-top:8px">${esc(q.w)}</p></div>`).join("")||"<p class='muted'>No mistakes.</p>"}</div>`;
+  };
 }
 
 /* ---------- cheat sheets ---------- */
