@@ -131,6 +131,24 @@
        "p": "kubeadm token create --print-join-command on the control plane, run it on each worker. Remove the control-plane taint to schedule there."
       }
      ]
+    },
+    {
+     "id": "arch_docs",
+     "t": "Using the docs during the exam",
+     "steps": [
+      {
+       "h": "What is allowed",
+       "p": "kubernetes.io/docs, kubernetes.io/blog and helm.sh/docs, in one extra tab. No forum, no blog, no AI assistant."
+      },
+      {
+       "h": "Pre-open the pages",
+       "p": "kubectl cheat sheet, NetworkPolicy, PV, probes, taints, RBAC. Finding a page in 30 seconds instead of 5 minutes is the difference between finishing and not."
+      },
+      {
+       "h": "Copy the YAML",
+       "p": "The docs contain complete manifests. Copy, paste, adapt the names. Do not retype a NetworkPolicy from memory."
+      }
+     ]
     }
    ]
   },
@@ -399,6 +417,24 @@
        "p": "kubectl describe ingress shows the controller events. A default backend 404 usually means a path or host mismatch."
       }
      ]
+    },
+    {
+     "id": "net_dnsdeep",
+     "t": "DNS names you must know",
+     "steps": [
+      {
+       "h": "Service",
+       "p": "<service>.<namespace>.svc.cluster.local resolves to the ClusterIP. Short name works inside the same namespace only."
+      },
+      {
+       "h": "Pod",
+       "p": "<pod-ip-with-hyphens>.<namespace>.pod.cluster.local resolves directly to a pod, even without a Service."
+      },
+      {
+       "h": "Debug",
+       "p": "nslookup from a busybox pod. If the name fails but the IP works, it is DNS, not networking."
+      }
+     ]
     }
    ]
   },
@@ -593,6 +629,42 @@
       {
        "h": "Symptom",
        "p": "x509: certificate has expired or is not yet valid on kubectl calls means the apiserver certificate needs renewal."
+      }
+     ]
+    },
+    {
+     "id": "trbl_paths",
+     "t": "The paths that save you",
+     "steps": [
+      {
+       "h": "Pod logs on disk",
+       "p": "/var/log/pods/<namespace>_<pod>_<uid>/<container>/0.log when kubectl logs fails or the container runtime misbehaves."
+      },
+      {
+       "h": "Kubelet",
+       "p": "/var/lib/kubelet holds the kubelet config and pki directory. Certificates used by the kubelet live in /var/lib/kubelet/pki."
+      },
+      {
+       "h": "CNI",
+       "p": "/etc/cni/net.d/ lists the CNI configuration files. An empty directory explains why pods never get an IP."
+      }
+     ]
+    },
+    {
+     "id": "trbl_workflow",
+     "t": "The exam-day workflow",
+     "steps": [
+      {
+       "h": "Read the last line first",
+       "p": "Every task ends with the verification: a pod Running, a PVC Bound, a curl returning a string. Read it first, then work backwards."
+      },
+      {
+       "h": "Five minute rule",
+       "p": "If a task resists for five minutes, flag it and move on. One candidate scored 16/75 on the first mock by refusing to skip; the second run reached 53/93."
+      },
+      {
+       "h": "Adapt, do not create",
+       "p": "kubectl get <resource> -o yaml > x.yaml, edit, re-apply. Writing manifests from scratch under time pressure is how typos happen."
       }
      ]
     }
@@ -820,6 +892,50 @@
     ],
     "a": 0,
     "w": "It runs as a static pod on the control plane; check its logs with crictl."
+   },
+   {
+    "q": "Where does the kubelet store its own certificates?",
+    "o": [
+     "/var/lib/kubelet/pki",
+     "/etc/kubernetes/pki",
+     "/etc/cni/net.d",
+     "/var/log/pods"
+    ],
+    "a": 0,
+    "w": "Kubelet client and server certs live in /var/lib/kubelet/pki."
+   },
+   {
+    "q": "Which docs site is NOT allowed during the CKA?",
+    "o": [
+     "kubernetes.io/docs",
+     "kubernetes.io/blog",
+     "helm.sh/docs",
+     "stackoverflow.com"
+    ],
+    "a": 3,
+    "w": "Only the official Kubernetes and Helm documentation are permitted."
+   },
+   {
+    "q": "A candidate scores 16/75 on the first killer.sh mock. Usual cause?",
+    "o": [
+     "Refusing to skip hard tasks",
+     "Missing kubectl",
+     "Wrong cluster",
+     "No network"
+    ],
+    "a": 0,
+    "w": "Time management: flag and move on, then come back."
+   },
+   {
+    "q": "Which command copies an existing deployment to edit it?",
+    "o": [
+     "kubectl get deploy web -o yaml > web.yaml",
+     "kubectl edit deploy > web.yaml",
+     "kubectl describe deploy web",
+     "kubectl logs deploy web"
+    ],
+    "a": 0,
+    "w": "Export, edit, re-apply. Faster and safer than writing from scratch."
    }
   ],
   "work": [
@@ -1042,6 +1158,50 @@
     ],
     "a": 0,
     "w": "completions is the target number of successful pods."
+   },
+   {
+    "q": "Which field suspends a CronJob without deleting it?",
+    "o": [
+     "spec.suspend: true",
+     "spec.paused: true",
+     "spec.disabled: true",
+     "spec.stop: true"
+    ],
+    "a": 0,
+    "w": "suspend stops new runs while keeping the object and history."
+   },
+   {
+    "q": "A Deployment update is stuck. Which command reveals the reason?",
+    "o": [
+     "kubectl rollout status deployment/web",
+     "kubectl get rs",
+     "kubectl top pod",
+     "kubectl get svc"
+    ],
+    "a": 0,
+    "w": "rollout status waits and prints why the new pods are not ready."
+   },
+   {
+    "q": "Which object would you use for a one-shot database migration?",
+    "o": [
+     "Job",
+     "Deployment",
+     "DaemonSet",
+     "StatefulSet"
+    ],
+    "a": 0,
+    "w": "A Job runs to completion; a Deployment would restart it forever."
+   },
+   {
+    "q": "What does kubectl set resources do?",
+    "o": [
+     "Updates requests and limits on a workload",
+     "Deletes the pod",
+     "Scales replicas",
+     "Changes the image"
+    ],
+    "a": 0,
+    "w": "It patches resources for the containers of the workload."
    }
   ],
   "net": [
@@ -1264,6 +1424,50 @@
     ],
     "a": 0,
     "w": "get svc -o wide shows ClusterIP, ports and selector."
+   },
+   {
+    "q": "Which DNS name reaches a pod directly?",
+    "o": [
+     "pod-ip-with-hyphens.namespace.pod.cluster.local",
+     "pod.namespace.svc.cluster.local",
+     "pod.cluster.local",
+     "pod.local"
+    ],
+    "a": 0,
+    "w": "Pod DNS uses the IP with hyphens under .pod.cluster.local."
+   },
+   {
+    "q": "A busybox pod resolves a Service name but curl hangs. Likely cause?",
+    "o": [
+     "NetworkPolicy or wrong targetPort",
+     "DNS failure",
+     "kubelet stopped",
+     "etcd down"
+    ],
+    "a": 0,
+    "w": "DNS works, so the problem is at the traffic layer."
+   },
+   {
+    "q": "Which port does kube-proxy use to expose NodePort?",
+    "o": [
+     "30000-32767",
+     "80-443",
+     "10250-10260",
+     "6443"
+    ],
+    "a": 0,
+    "w": "The default NodePort range is 30000 to 32767."
+   },
+   {
+    "q": "Which command shows the selector of a Service?",
+    "o": [
+     "kubectl describe svc web",
+     "kubectl logs svc web",
+     "kubectl get nodes",
+     "kubectl top svc"
+    ],
+    "a": 0,
+    "w": "describe prints Selector, Endpoints and Events."
    }
   ],
   "stor": [
@@ -1486,6 +1690,50 @@
     ],
     "a": 0,
     "w": "Projected volumes merge several sources into one directory."
+   },
+   {
+    "q": "A PVC is Bound but the pod cannot write. Likely cause?",
+    "o": [
+     "Access mode or read-only mount",
+     "The PVC is Pending",
+     "No StorageClass",
+     "Wrong namespace"
+    ],
+    "a": 0,
+    "w": "ReadWriteOnce on another node, or a readOnly: true mount."
+   },
+   {
+    "q": "Which command shows the reclaim policy of a PV?",
+    "o": [
+     "kubectl get pv -o wide",
+     "kubectl describe pvc",
+     "kubectl get sc",
+     "kubectl logs pv"
+    ],
+    "a": 0,
+    "w": "The RECLAIM POLICY column appears with get pv or describe pv."
+   },
+   {
+    "q": "Where is the hostPath of a static pod defined?",
+    "o": [
+     "In its manifest under /etc/kubernetes/manifests",
+     "In the kubelet config only",
+     "In the PVC",
+     "In the StorageClass"
+    ],
+    "a": 0,
+    "w": "Static pods are plain manifests read by the kubelet."
+   },
+   {
+    "q": "What blocks a PVC from binding to a PV?",
+    "o": [
+     "Different access mode or capacity",
+     "Same namespace",
+     "A matching StorageClass",
+     "A running pod"
+    ],
+    "a": 0,
+    "w": "The PV must satisfy accessModes and have at least the requested capacity."
    }
   ],
   "trbl": [
@@ -1708,6 +1956,50 @@
     ],
     "a": 0,
     "w": "--previous reads the last terminated instance."
+   },
+   {
+    "q": "kubectl logs fails but the container runs. Where else can you look?",
+    "o": [
+     "/var/log/pods",
+     "/etc/kubernetes/manifests",
+     "/etc/cni/net.d",
+     "/var/lib/kubelet/pki"
+    ],
+    "a": 0,
+    "w": "The kubelet writes container logs under /var/log/pods."
+   },
+   {
+    "q": "An empty /etc/cni/net.d explains:",
+    "o": [
+     "pods without IP",
+     "etcd failures",
+     "scheduler stalls",
+     "certificate expiry"
+    ],
+    "a": 0,
+    "w": "No CNI config means no pod network."
+   },
+   {
+    "q": "Which command lists containers on a node when the apiserver is down?",
+    "o": [
+     "crictl ps -a",
+     "kubectl get pods",
+     "docker ps",
+     "kubectl top nodes"
+    ],
+    "a": 0,
+    "w": "crictl talks to the runtime socket directly."
+   },
+   {
+    "q": "A task resists for five minutes. Best move?",
+    "o": [
+     "Flag it and move to the next task",
+     "Keep trying until solved",
+     "Reboot the cluster",
+     "Delete the namespace"
+    ],
+    "a": 0,
+    "w": "Passing candidates all report the same strategy: come back later."
    }
   ]
  },
@@ -1931,6 +2223,30 @@
   {
    "t": "Verify, then move",
    "p": "kubectl get, describe, or curl. A created object that does not work is worth zero, and partial credit only comes from a working part."
+  },
+  {
+   "t": "Documentation is a skill, not a safety net",
+   "p": "One candidate spent weeks memorising YAML, then realised the real skill is finding the right docs page in 30 seconds. Pre-open kubectl cheat sheet, NetworkPolicy, PV, probes and RBAC."
+  },
+  {
+   "t": "The mock score that matters",
+   "p": "Reports converge: first killer.sh run often lands under 30%, then above 70% after two weeks of hands-on. Book only when you finish the mock inside the two hours, not after."
+  },
+  {
+   "t": "Join 30 minutes early",
+   "p": "Identity verification takes time. Candidates who joined late started stressed and lost minutes they never recovered."
+  },
+  {
+   "t": "No multiple choice",
+   "p": "The real CKA is 100% hands-on tasks. If a resource claims MCQs, it is a different exam or an old format."
+  },
+  {
+   "t": "Adapt manifests instead of writing them",
+   "p": "kubectl get deploy web -o yaml > web.yaml, edit two lines, apply. This single habit saves ten minutes per exam."
+  },
+  {
+   "t": "Know the six paths",
+   "p": "/etc/kubernetes/manifests, /var/lib/kubelet, /var/lib/kubelet/pki, /var/log/pods, /etc/cni/net.d, /etc/kubernetes/pki. Half the troubleshooting tasks are decided there."
   }
  ],
  "docs": [
@@ -2093,6 +2409,80 @@
     {
      "h": "Bookmarks",
      "p": "Prepare the doc pages you will need: kubectl cheat sheet, NetworkPolicy, PV, probes, taints. You cannot browse freely, but you can pre-open tabs."
+    }
+   ]
+  },
+  {
+   "id": "doc_day",
+   "t": "Exam day, hour by hour",
+   "body": [
+    {
+     "h": "T-30 min",
+     "p": "Join the proctoring session early. Identity check, room scan, then the exam environment opens. Late joiners lose minutes they never get back."
+    },
+    {
+     "h": "First 5 minutes",
+     "p": "Set aliases (k=kubectl, export do='--dry-run=client -o yaml'), open the docs tab, and write your six paths on paper if scratch paper is allowed."
+    },
+    {
+     "h": "First pass (60 min)",
+     "p": "Solve everything you recognise instantly. Flag anything that resists more than five minutes. Aim to have 12 of 20 tasks done."
+    },
+    {
+     "h": "Second pass (40 min)",
+     "p": "Attack the flagged ones. Adapt existing YAML rather than writing from scratch. Verify with kubectl get after each."
+    },
+    {
+     "h": "Last 20 minutes",
+     "p": "Re-verify every created object: Running, Bound, endpoints, curl. Fix only what is cheap to fix. Do not start a new complex task."
+    }
+   ]
+  },
+  {
+   "id": "doc_nav",
+   "t": "Finding answers in the docs fast",
+   "body": [
+    {
+     "h": "The six pages to pre-open",
+     "p": "kubectl cheat sheet, NetworkPolicy, PersistentVolume, liveness/readiness probes, taints and tolerations, RBAC."
+    },
+    {
+     "h": "Copy, do not type",
+     "p": "Every one of those pages contains a complete manifest. Copy it, change the names, apply. That is the intended workflow."
+    },
+    {
+     "h": "Search inside the page",
+     "p": "Ctrl+F on the page beats the site search. Search for the API field name, not for the concept."
+    },
+    {
+     "h": "Allowed sites",
+     "p": "kubernetes.io/docs, kubernetes.io/blog, helm.sh/docs. Nothing else, and no AI assistant."
+    }
+   ]
+  },
+  {
+   "id": "doc_tasks",
+   "t": "30 tasks worth practising",
+   "body": [
+    {
+     "h": "Architecture",
+     "p": "etcd snapshot and restore; create a Role and bind it; kubeadm upgrade a control plane; add a worker; renew certificates; inspect static pod manifests."
+    },
+    {
+     "h": "Workloads",
+     "p": "Rolling update and rollback; ConfigMap as env and as volume; Secret as file; resource requests and limits; nodeSelector and affinity; taint and toleration; Job and CronJob; init container."
+    },
+    {
+     "h": "Networking",
+     "p": "ClusterIP, NodePort, LoadBalancer; fix empty endpoints; NetworkPolicy default deny plus allow; Ingress with TLS; test DNS from a pod."
+    },
+    {
+     "h": "Storage",
+     "p": "Create a PV and a PVC that binds; StorageClass default; StatefulSet with volumeClaimTemplates; mount a ConfigMap."
+    },
+    {
+     "h": "Troubleshooting",
+     "p": "Pod Pending, CrashLoopBackOff, ImagePullBackOff; node NotReady; Service without endpoints; kubelet logs; CoreDNS failure; expired certificate."
     }
    ]
   }
