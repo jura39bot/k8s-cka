@@ -2486,5 +2486,191 @@
     }
    ]
   }
+ ],
+ "labs": [
+  {
+   "id": "lab_etcd",
+   "dom": "arch",
+   "t": "Back up etcd",
+   "brief": "Take a consistent snapshot of etcd on the control plane node, then verify it.",
+   "sol": "ETCDCTL_API=3 etcdctl snapshot save /backup/etcd.db \\\n  --endpoints=https://127.0.0.1:2379 \\\n  --cacert=/etc/kubernetes/pki/etcd/ca.crt \\\n  --cert=/etc/kubernetes/pki/etcd/server.crt \\\n  --key=/etc/kubernetes/pki/etcd/server.key\netcdctl snapshot status /backup/etcd.db --write-out=table",
+   "check": "The status output shows a revision and a non-zero key count."
+  },
+  {
+   "id": "lab_rbac",
+   "dom": "arch",
+   "t": "Grant read-only pod access",
+   "brief": "User jane must list and get pods in namespace dev, nothing more.",
+   "sol": "kubectl create role pod-reader --verb=get,list --resource=pods -n dev\nkubectl create rolebinding jane-read --role=pod-reader --user=jane -n dev\nkubectl auth can-i list pods --as=jane -n dev",
+   "check": "can-i answers yes for list, no for delete."
+  },
+  {
+   "id": "lab_upgrade",
+   "dom": "arch",
+   "t": "Upgrade a worker",
+   "brief": "Upgrade a worker node to the next available kubeadm version and bring it back.",
+   "sol": "kubectl drain node1 --ignore-daemonsets --delete-emptydir-data\napt-get install -y kubeadm=1.30.0-1.1\nkubeadm upgrade node\napt-get install -y kubelet=1.30.0-1.1 kubectl=1.30.0-1.1\nsystemctl restart kubelet\nkubectl uncordon node1",
+   "check": "kubectl get nodes shows the new version and Ready."
+  },
+  {
+   "id": "lab_ctx",
+   "dom": "arch",
+   "t": "Work in the right namespace",
+   "brief": "Set the current context namespace to dev and prove it.",
+   "sol": "kubectl config set-context --current --namespace=dev\nkubectl config view --minify | grep namespace",
+   "check": "The minified config shows namespace: dev."
+  },
+  {
+   "id": "lab_rollout",
+   "dom": "work",
+   "t": "Rolling update and rollback",
+   "brief": "Update the image of deployment web to nginx:1.27, watch the rollout, then roll back.",
+   "sol": "kubectl set image deployment/web nginx=nginx:1.27\nkubectl rollout status deployment/web\nkubectl rollout undo deployment/web\nkubectl rollout status deployment/web",
+   "check": "After undo, the pods run the previous image."
+  },
+  {
+   "id": "lab_cm",
+   "dom": "work",
+   "t": "ConfigMap as file and env",
+   "brief": "Create a ConfigMap from a file and mount it in a pod, plus expose one key as an env var.",
+   "sol": "kubectl create configmap app --from-file=app.conf\nkubectl run cfg --image=nginx --dry-run=client -o yaml > p.yaml\n# add volumeMounts + volumes, and env.valueFrom.configMapKeyRef\nkubectl apply -f p.yaml",
+   "check": "kubectl exec cfg -- cat /etc/app/app.conf prints the file."
+  },
+  {
+   "id": "lab_res",
+   "dom": "work",
+   "t": "Requests, limits and QoS",
+   "brief": "Create a pod with requests and limits that gets the Guaranteed QoS class.",
+   "sol": "# requests == limits for cpu and memory on every container\nkubectl run g --image=nginx --dry-run=client -o yaml > g.yaml\n# set requests=limits\nkubectl apply -f g.yaml\nkubectl get pod g -o jsonpath='{.status.qosClass}'",
+   "check": "The qosClass is Guaranteed."
+  },
+  {
+   "id": "lab_taint",
+   "dom": "work",
+   "t": "Taint and toleration",
+   "brief": "Taint node1 with dedicated=gpu:NoSchedule, then run a pod that tolerates it.",
+   "sol": "kubectl taint nodes node1 dedicated=gpu:NoSchedule\n# add tolerations to the pod spec\nkubectl run gpu --image=nginx --dry-run=client -o yaml > g.yaml\nkubectl apply -f g.yaml",
+   "check": "kubectl get pod -o wide shows node1."
+  },
+  {
+   "id": "lab_job",
+   "dom": "work",
+   "t": "Job and CronJob",
+   "brief": "Create a Job with 3 completions and a CronJob running every 5 minutes.",
+   "sol": "kubectl create job once --image=busybox -- echo done\nkubectl create cronjob every5 --image=busybox --schedule='*/5 * * * *' -- echo tick",
+   "check": "kubectl get job shows COMPLETIONS 1/1, get cronjob shows the schedule."
+  },
+  {
+   "id": "lab_svc",
+   "dom": "net",
+   "t": "Expose a deployment",
+   "brief": "Expose deployment web on port 80 targeting container port 8080, as NodePort.",
+   "sol": "kubectl expose deployment web --port=80 --target-port=8080 --type=NodePort\nkubectl get svc web -o wide",
+   "check": "Endpoints are populated and the NodePort is in 30000-32767."
+  },
+  {
+   "id": "lab_endpoints",
+   "dom": "net",
+   "t": "Fix empty endpoints",
+   "brief": "A Service returns nothing. Find why and fix it without touching the Service spec.",
+   "sol": "kubectl get endpoints web\nkubectl get pods --show-labels\n# label the pods to match the Service selector\nkubectl label pod <pod> app=web",
+   "check": "kubectl get endpoints web now lists pod IPs."
+  },
+  {
+   "id": "lab_netpol",
+   "dom": "net",
+   "t": "Default deny then allow",
+   "brief": "Deny all ingress in namespace dev, then allow only pods labelled role=frontend to reach role=db on 5432.",
+   "sol": "# policy 1: podSelector {} policyTypes [Ingress]\n# policy 2: podSelector role=db, ingress from podSelector role=frontend, ports 5432\nkubectl apply -f netpol.yaml",
+   "check": "kubectl describe netpol shows both selectors."
+  },
+  {
+   "id": "lab_dns",
+   "dom": "net",
+   "t": "Prove DNS works",
+   "brief": "From a temporary pod, resolve a Service by short name and by FQDN.",
+   "sol": "kubectl run tmp --image=busybox --rm -it -- sh\nnslookup web\nnslookup web.dev.svc.cluster.local",
+   "check": "Both return an IP, the FQDN one always."
+  },
+  {
+   "id": "lab_ingress",
+   "dom": "net",
+   "t": "Ingress with TLS",
+   "brief": "Create a TLS secret and route host demo.local to service web on port 80.",
+   "sol": "kubectl create secret tls demo-tls --cert=tls.crt --key=tls.key\nkubectl create ingress demo --rule='demo.local/=web:80' --tls=demo.local=demo-tls",
+   "check": "kubectl describe ingress demo shows the rule and the TLS section."
+  },
+  {
+   "id": "lab_pv",
+   "dom": "stor",
+   "t": "Bind a PVC to a PV",
+   "brief": "Create a 1Gi hostPath PV with ReadWriteOnce, and a PVC that binds to it.",
+   "sol": "# pv.yaml: capacity 1Gi, accessModes [ReadWriteOnce], hostPath /mnt/data\nkubectl apply -f pv.yaml\n# pvc.yaml: requests storage 1Gi, same access mode\nkubectl apply -f pvc.yaml\nkubectl get pvc",
+   "check": "STATUS is Bound, and the PV shows Claim: default/<name>."
+  },
+  {
+   "id": "lab_sc",
+   "dom": "stor",
+   "t": "Default StorageClass",
+   "brief": "Mark an existing StorageClass as the cluster default.",
+   "sol": "kubectl patch storageclass standard -p '{\"metadata\":{\"annotations\":{\"storageclass.kubernetes.io/is-default-class\":\"true\"}}}'",
+   "check": "kubectl get sc shows (default) next to the class."
+  },
+  {
+   "id": "lab_sts",
+   "dom": "stor",
+   "t": "StatefulSet with per-pod storage",
+   "brief": "Create a StatefulSet of 2 replicas with a volumeClaimTemplate of 1Gi.",
+   "sol": "# volumeClaimTemplates: name data, 1Gi, ReadWriteOnce\nkubectl apply -f sts.yaml\nkubectl get pvc",
+   "check": "Two PVCs named data-<statefulset>-0 and -1, both Bound."
+  },
+  {
+   "id": "lab_pending",
+   "dom": "trbl",
+   "t": "Diagnose a Pending pod",
+   "brief": "A pod never schedules. Find the reason and make it run.",
+   "sol": "kubectl describe pod <pod>\n# read Events: insufficient cpu, or nodeSelector, or taint\nkubectl get nodes --show-labels\n# fix the selector or lower the requests",
+   "check": "kubectl get pod shows Running on the expected node."
+  },
+  {
+   "id": "lab_crash",
+   "dom": "trbl",
+   "t": "Diagnose CrashLoopBackOff",
+   "brief": "A container restarts in a loop. Find the cause from the logs and fix the manifest.",
+   "sol": "kubectl logs <pod> --previous\nkubectl describe pod <pod>\n# often a bad livenessProbe or a wrong command",
+   "check": "The pod is Running with 0 restarts after a minute."
+  },
+  {
+   "id": "lab_image",
+   "dom": "trbl",
+   "t": "Fix ImagePullBackOff",
+   "brief": "A pod cannot pull its image. Identify whether it is the name, the tag or a pull secret.",
+   "sol": "kubectl describe pod <pod>\n# check the exact image string and the Events\n# if private: kubectl create secret docker-registry regcred ...\n# add imagePullSecrets to the pod spec",
+   "check": "The pod reaches Running."
+  },
+  {
+   "id": "lab_notready",
+   "dom": "trbl",
+   "t": "Node NotReady",
+   "brief": "A worker is NotReady. Find the cause on the node and restore it.",
+   "sol": "kubectl describe node <node>\nssh <node>\nsystemctl status kubelet\njournalctl -u kubelet -n 50 --no-pager\nsystemctl restart kubelet",
+   "check": "kubectl get nodes shows Ready within a minute."
+  },
+  {
+   "id": "lab_svc_dbg",
+   "dom": "trbl",
+   "t": "Service unreachable",
+   "brief": "A Service answers nothing from another pod. Find the broken link.",
+   "sol": "kubectl get endpoints <svc>\nkubectl get svc <svc> -o yaml | grep -E 'port|targetPort'\nkubectl exec tmp -- wget -qO- http://<svc>:80",
+   "check": "curl or wget returns the app response."
+  },
+  {
+   "id": "lab_certs",
+   "dom": "trbl",
+   "t": "Check certificate expiry",
+   "brief": "List the control plane certificates and their expiry dates.",
+   "sol": "kubeadm certs check-expiration",
+   "check": "Every certificate shows a date in the future."
+  }
  ]
 }

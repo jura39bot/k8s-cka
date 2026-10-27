@@ -183,6 +183,8 @@ function render(){
   case "lesson":return lessonScreen(a);
   case "cours":return coursScreen(a);
   case "quiz":return quizScreen(a);
+  case "labs":return labsScreen(a);
+  case "lab":return labScreen(a);
   case "mock":return mockScreen(a);
   case "mockresult":return mockResult(a);
   case "cheat":return cheatScreen(a);
@@ -242,10 +244,11 @@ function home(a){
  <div style="height:10px"></div>
  <div class="grid2">
    <button class="btn alt" id="dom">📚 Lessons</button>
-   <button class="btn alt" id="cheat">📄 Cheat sheets</button>
+   <button class="btn alt" id="labs">🧪 Labs</button>
  </div>
  <div style="height:10px"></div>
  <div class="grid2">
+   <button class="btn alt" id="cheat">📄 Sheets</button>
    <button class="btn alt" id="tips">💡 Tips</button>
    <button class="btn alt" id="docs">📖 Docs</button>
  </div>
@@ -256,6 +259,7 @@ function home(a){
  $("#qcm").onclick=()=>startQuiz(null);
  $("#mock").onclick=()=>startMock();
  $("#dom").onclick=()=>go("domains");
+ $("#labs").onclick=()=>go("labs");
  $("#cheat").onclick=()=>{S._dom=DATA.cheatsheets[0].id;go("cheat")};
  $("#tips").onclick=()=>go("tips");
  $("#docs").onclick=()=>go("docs");
@@ -308,7 +312,7 @@ function lessonScreen(a){
  const l=r.l;
  l.steps.forEach((_,i)=>{S.seen[l.id+"_"+i]=true}); save();
  a.innerHTML=`<div class="top"><button class="back" onclick="go('domain')">‹</button><h2>${esc(l.t)}</h2><span style="width:40px"></span></div>
- <button class="btn" id="cours">▶︎ Animated course</button>
+ <button class="btn" id="cours">🎬 Live session — narrated walkthrough</button>
  <div class="spacer"></div>
  <div class="stack">${l.steps.map(st=>`<div class="card"><h3 style="color:#8fd4ff">${esc(st.h)}</h3>
    <p style="margin-top:8px">${esc(st.p)}</p></div>`).join("")}</div>
@@ -408,6 +412,56 @@ function endQuiz(ok,n){
  <div class="stat"><b>${n-ok}</b><i>errors</i></div><div class="stat"><b>${acc}%</b><i>score</i></div></div>
  <div class="spacer"></div><button class="btn" onclick="go('home')">Done</button>
  <div style="height:10px"></div><button class="btn alt" onclick="startQuiz(null)">Another series</button>`;
+}
+
+/* ---------- labs ---------- */
+function labsScreen(a){
+ const done=S.labs||{};
+ const total=DATA.labs.length, ok=Object.keys(done).filter(k=>done[k]).length;
+ a.innerHTML=`<div class="top"><button class="back" onclick="go('home')">‹</button><h2>Labs</h2><span class="pill">${ok}/${total}</span></div>
+ <p class="small muted" style="margin-bottom:12px">Run these on a real cluster. The app gives the task and the check, you do the work.</p>
+ <div class="bar" style="margin-bottom:14px"><i style="width:${Math.round(100*ok/total)}%"></i></div>
+ <div class="stack" id="ll"></div>`;
+ const box=$("#ll");
+ DATA.domains.forEach(d=>{
+   const labs=DATA.labs.filter(l=>l.dom===d.id);
+   if(!labs.length)return;
+   box.appendChild(el(`<h3 style="margin-top:10px">${d.e} ${esc(d.n)}</h3>`));
+   labs.forEach(l=>{
+     const b=el(`<button class="lvl"><div class="ico" style="background:rgba(90,209,0,.15)">${done[l.id]?"✓":"•"}</div>
+       <div class="meta"><b>${esc(l.t)}</b><div class="tiny muted">${done[l.id]?"done":"to do"}</div></div>
+       <div class="muted">›</div></button>`);
+     b.onclick=()=>{S._lab=l.id;go("lab")};
+     box.appendChild(b);
+   });
+ });
+}
+function labScreen(a){
+ const l=DATA.labs.find(x=>x.id===S._lab); if(!l)return go("labs");
+ const done=(S.labs||{})[l.id];
+ a.innerHTML=`<div class="top"><button class="back" onclick="go('labs')">‹</button><h2>Lab</h2><span style="width:40px"></span></div>
+ <div class="tiny muted">${esc(domainById(l.dom).n)}</div>
+ <h2 style="margin-top:6px">${esc(l.t)}</h2>
+ <div class="spacer"></div>
+ <div class="card"><h3>Task</h3><p style="margin-top:8px">${esc(l.brief)}</p></div>
+ <div class="spacer"></div>
+ <button class="btn alt" id="sol">👁 Show solution</button>
+ <div id="solbox"></div>
+ <div class="spacer"></div>
+ <div class="card"><h3>How to verify</h3><p class="small" style="margin-top:8px">${esc(l.check)}</p></div>
+ <div class="spacer"></div>
+ <button class="btn ${done?"alt":""}" id="done">${done?"✓ Done — unmark":"Mark as done"}</button>`;
+ $("#sol").onclick=()=>{
+   const box=$("#solbox");
+   if(box.innerHTML){box.innerHTML="";return}
+   box.innerHTML=`<pre>${esc(l.sol)}</pre>`;
+ };
+ $("#done").onclick=()=>{
+   S.labs=S.labs||{};
+   S.labs[l.id]=!S.labs[l.id];
+   if(S.labs[l.id]){S.xp+=15;S.history[today()]=S.history[today()]||{xp:0,m:0};S.history[today()].xp=(S.history[today()].xp||0)+15}
+   save();render();
+ };
 }
 
 /* ---------- timed mock exam ---------- */
